@@ -1,0 +1,8 @@
+[package]
+name = "ntop"
+version = "0.1.0"
+authors = ["Conrad Dean <conrad.p.dean@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+pnet = "0.21.0"
