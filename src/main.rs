@@ -21,6 +21,34 @@ fn parseable(ethernet: EthernetPacket) -> Option<EthernetPacket> {
 }
 
 fn handle_packet(ethernet: &EthernetPacket) {
+    if let EtherTypes::Ipv4 = ethernet.get_ethertype() {
+        let header = Ipv4Packet::new(ethernet.payload());
+        if let Some(header) = header {
+            if let IpNextHeaderProtocols::Tcp = header.get_next_level_protocol() {
+                let tcp = TcpPacket::new(header.payload());
+                if let Some(tcp) = tcp {
+                    println!(
+                        "Ipv4:TCP: {} to {}: size {}, seq {}, win {}, offset {}, first {}, payload len {}",
+                        header.get_source(),
+                        header.get_destination(),
+                        tcp.packet_size(),
+                        tcp.get_sequence(),
+                        tcp.get_window(),
+                        tcp.get_data_offset(),
+                        if tcp.payload().len() > 0 {
+                            tcp.payload()[0]
+                        } else {
+                            0
+                        },
+                        tcp.payload().len(),
+                        );
+                }
+            }
+        }
+    }
+}
+
+fn handle_packet_everything(ethernet: &EthernetPacket) {
     match ethernet.get_ethertype() {
         EtherTypes::Ipv4 => {
             let header = Ipv4Packet::new(ethernet.payload());
