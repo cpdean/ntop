@@ -11,6 +11,57 @@ use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::Packet;
 
 use std::env;
+use std::collections::HashMap;
+
+struct PacketAccumulator {
+    addrs: HashMap<(std::net::Ipv4Addr, std::net::Ipv4Addr), i32>,
+}
+
+impl PacketAccumulator {
+    pub fn new() -> PacketAccumulator {
+        PacketAccumulator {
+            addrs: HashMap::new(),
+        }
+    }
+
+    fn render(&self) {
+        let mut a = Vec::new();
+        for ((src, dest), bytes) in &self.addrs {
+            a.push((format!("{} -> {}", src.clone(), dest.clone()), bytes.clone()));
+        }
+        a.sort_by(|a, b| b.1.cmp(&a.1));
+        a.truncate(5);
+        println!("=======");
+        for entry in a {
+            println!("{:?}", entry);
+        }
+    }
+
+    pub fn push(&mut self, ethernet: EthernetPacket) {
+        if let EtherTypes::Ipv4 = ethernet.get_ethertype() {
+            let ipv4_packet = Ipv4Packet::new(ethernet.payload());
+            if let Some(ipv4_packet) = ipv4_packet {
+                // i guess discard non tcp
+                if let IpNextHeaderProtocols::Tcp = ipv4_packet.get_next_level_protocol() {
+                    let tcp = TcpPacket::new(ipv4_packet.payload());
+                    if let Some(tcp) = tcp {
+                        let (src, dest) = (
+                            ipv4_packet.get_source(),
+                            ipv4_packet.get_destination()
+                        );
+                        let running: i32 = match self.addrs.get(&(src, dest)) {
+                            Some(running_total) => *running_total,
+                            None => 0,
+                        };
+                        let payload_size = tcp.payload().len() as i32;
+                        self.addrs.insert((src, dest), running + payload_size);
+                        self.render();
+                    }
+                }
+            }
+        }
+    }
+}
 
 
 fn parseable(ethernet: EthernetPacket) -> Option<EthernetPacket> {
@@ -247,12 +298,14 @@ fn main() {
         },
     };
 
+    let mut accumulator = PacketAccumulator::new();
+
     // loop over packets arriving on the given interface
     loop {
         match rx.next() {
             Ok(packet) => {
                 let packet = EthernetPacket::new(packet).unwrap();
-                handle_packet(&packet);
+                accumulator.push(packet);
             }
             Err(e) => {
                 panic!("An error occurred while reading: {}", e);
