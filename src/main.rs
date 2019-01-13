@@ -10,6 +10,10 @@ use pnet::packet::udp::UdpPacket;
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::Packet;
 
+use std::net::IpAddr;
+
+use dns_lookup::lookup_addr;
+
 use std::env;
 use std::collections::HashMap;
 use std::io::{stdout, Write};
@@ -17,6 +21,7 @@ use std::io::{stdout, Write};
 struct PacketAccumulator {
     addrs: HashMap<(std::net::Ipv4Addr, std::net::Ipv4Addr), i32>,
     reset_sequence: String,
+    addr_lookup: HashMap<std::net::Ipv4Addr, String>,
 }
 
 impl PacketAccumulator {
@@ -24,13 +29,19 @@ impl PacketAccumulator {
         PacketAccumulator {
             addrs: HashMap::new(),
             reset_sequence: "".to_string(),
+            addr_lookup: HashMap::new(),
         }
     }
 
     fn render(&mut self) {
         let mut a = Vec::new();
         for ((src, dest), bytes) in &self.addrs {
-            a.push((format!("{} -> {}", src.clone(), dest.clone()), bytes.clone()));
+            a.push(
+                (
+                    format!("{} -> {}", self.add_domain(&src), self.add_domain(&dest)),
+                    bytes.clone()
+                )
+            );
         }
         a.sort_by(|a, b| b.1.cmp(&a.1));
         a.truncate(15);
@@ -41,6 +52,10 @@ impl PacketAccumulator {
             println!("{:?}", entry);
         }
         self.reset_sequence = "\x1b[2K\x1b[1A".repeat(num_lines + 1);
+    }
+
+    fn add_domain(&self, address: &std::net::Ipv4Addr) -> String {
+        self.addr_lookup.get(address).unwrap().to_owned()
     }
 
     pub fn push(&mut self, ethernet: EthernetPacket) {
@@ -55,6 +70,13 @@ impl PacketAccumulator {
                             ipv4_packet.get_source(),
                             ipv4_packet.get_destination()
                         );
+                        let _addrs = vec![src, dest];
+                        for a in _addrs {
+                            if !self.addr_lookup.contains_key(&a) {
+                                let host = lookup_addr(&IpAddr::V4(a)).unwrap();
+                                self.addr_lookup.insert(a, host);
+                            }
+                        }
                         let running: i32 = match self.addrs.get(&(src, dest)) {
                             Some(running_total) => *running_total,
                             None => 0,
