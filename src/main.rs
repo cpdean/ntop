@@ -12,29 +12,35 @@ use pnet::packet::Packet;
 
 use std::env;
 use std::collections::HashMap;
+use std::io::{stdout, Write};
 
 struct PacketAccumulator {
     addrs: HashMap<(std::net::Ipv4Addr, std::net::Ipv4Addr), i32>,
+    reset_sequence: String,
 }
 
 impl PacketAccumulator {
     pub fn new() -> PacketAccumulator {
         PacketAccumulator {
             addrs: HashMap::new(),
+            reset_sequence: "".to_string(),
         }
     }
 
-    fn render(&self) {
+    fn render(&mut self) {
         let mut a = Vec::new();
         for ((src, dest), bytes) in &self.addrs {
             a.push((format!("{} -> {}", src.clone(), dest.clone()), bytes.clone()));
         }
         a.sort_by(|a, b| b.1.cmp(&a.1));
-        a.truncate(5);
+        a.truncate(15);
+        let num_lines = a.len();
         println!("=======");
+        write!(stdout(), "{}", self.reset_sequence).unwrap();
         for entry in a {
             println!("{:?}", entry);
         }
+        self.reset_sequence = "\x1b[2K\x1b[1A".repeat(num_lines + 1);
     }
 
     pub fn push(&mut self, ethernet: EthernetPacket) {
@@ -64,14 +70,14 @@ impl PacketAccumulator {
 }
 
 
-fn parseable(ethernet: EthernetPacket) -> Option<EthernetPacket> {
+fn _parseable(ethernet: EthernetPacket) -> Option<EthernetPacket> {
     match ethernet.get_ethertype() {
         EtherTypes::Ipv4 | EtherTypes::Ipv6 | EtherTypes::Arp => Some(ethernet) ,
         _ => None
     }
 }
 
-fn handle_packet(ethernet: &EthernetPacket) {
+fn _handle_packet(ethernet: &EthernetPacket) {
     if let EtherTypes::Ipv4 = ethernet.get_ethertype() {
         let header = Ipv4Packet::new(ethernet.payload());
         if let Some(header) = header {
@@ -99,7 +105,7 @@ fn handle_packet(ethernet: &EthernetPacket) {
     }
 }
 
-fn handle_packet_everything(ethernet: &EthernetPacket) {
+fn _handle_packet_everything(ethernet: &EthernetPacket) {
     match ethernet.get_ethertype() {
         EtherTypes::Ipv4 => {
             let header = Ipv4Packet::new(ethernet.payload());
@@ -186,7 +192,7 @@ fn handle_packet_everything(ethernet: &EthernetPacket) {
     }
 }
 
-fn handle_packet_raw(ethernet: &EthernetPacket) {
+fn _handle_packet_raw(ethernet: &EthernetPacket) {
     match ethernet.get_ethertype() {
         EtherTypes::Ipv4 => {
             let header = Ipv4Packet::new(ethernet.payload());
