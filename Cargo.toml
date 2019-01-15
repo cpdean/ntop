@@ -7,3 +7,14 @@ edition = "2018"
 [dependencies]
 pnet = "0.21.0"
 dns-lookup = "1.0.0"
+# i want to use cursive with termion but for now default ncurses backend is more
+# stable
+cursive = "0.10.0"
+cursive_table_view = "0.5.0"
+
+# using termion may be buggy, but it's the ncurses-ish library i want to see
+# succeed
+# [dependencies.cursive]
+# version = "0.10.0"
+# default-features = false
+# features = ["termion-backend"]

@@ -1,21 +1,21 @@
 extern crate pnet;
 
-use pnet::datalink::{self, NetworkInterface};
 use pnet::datalink::Channel::Ethernet;
+use pnet::datalink::{self, NetworkInterface};
 use pnet::packet::ethernet::{EtherTypes, EthernetPacket};
+use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::tcp::TcpPacket;
-use pnet::packet::PacketSize;
 use pnet::packet::udp::UdpPacket;
-use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::Packet;
+use pnet::packet::PacketSize;
 
 use std::net::IpAddr;
 
 use dns_lookup::lookup_addr;
 
-use std::env;
 use std::collections::HashMap;
+use std::env;
 use std::io::{stdout, Write};
 
 struct PacketAccumulator {
@@ -36,12 +36,10 @@ impl PacketAccumulator {
     fn render(&mut self) {
         let mut a = Vec::new();
         for ((src, dest), bytes) in &self.addrs {
-            a.push(
-                (
-                    format!("{} -> {}", self.add_domain(&src), self.add_domain(&dest)),
-                    bytes.clone()
-                )
-            );
+            a.push((
+                format!("{} -> {}", self.add_domain(&src), self.add_domain(&dest)),
+                bytes.clone(),
+            ));
         }
         a.sort_by(|a, b| b.1.cmp(&a.1));
         a.truncate(15);
@@ -66,10 +64,7 @@ impl PacketAccumulator {
                 if let IpNextHeaderProtocols::Tcp = ipv4_packet.get_next_level_protocol() {
                     let tcp = TcpPacket::new(ipv4_packet.payload());
                     if let Some(tcp) = tcp {
-                        let (src, dest) = (
-                            ipv4_packet.get_source(),
-                            ipv4_packet.get_destination()
-                        );
+                        let (src, dest) = (ipv4_packet.get_source(), ipv4_packet.get_destination());
                         let _addrs = vec![src, dest];
                         for a in _addrs {
                             if !self.addr_lookup.contains_key(&a) {
@@ -91,11 +86,10 @@ impl PacketAccumulator {
     }
 }
 
-
 fn _parseable(ethernet: EthernetPacket) -> Option<EthernetPacket> {
     match ethernet.get_ethertype() {
-        EtherTypes::Ipv4 | EtherTypes::Ipv6 | EtherTypes::Arp => Some(ethernet) ,
-        _ => None
+        EtherTypes::Ipv4 | EtherTypes::Ipv6 | EtherTypes::Arp => Some(ethernet),
+        _ => None,
     }
 }
 
@@ -141,9 +135,9 @@ fn _handle_packet_everything(ethernet: &EthernetPacket) {
                                 header.get_source(),
                                 header.get_destination(),
                                 tcp.packet_size(),
-                                );
+                            );
                         }
-                    },
+                    }
                     IpNextHeaderProtocols::Udp => {
                         let tcp = UdpPacket::new(header.payload());
                         if let Some(tcp) = tcp {
@@ -152,17 +146,17 @@ fn _handle_packet_everything(ethernet: &EthernetPacket) {
                                 header.get_source(),
                                 header.get_destination(),
                                 tcp.packet_size(),
-                                );
+                            );
                         }
-                    },
+                    }
                     IpNextHeaderProtocols::Igmp => {
                         // write one, like https://docs.rs/pnet_packet/0.21.0/src/pnet_packet/home/cratesfyi/cratesfyi/debug/build/pnet_packet-5727444bbdb057d0/out/udp.rs.html#61-66
-                        println!( "Ipv4:Igmp: no supported parser yet");
-                    },
+                        println!("Ipv4:Igmp: no supported parser yet");
+                    }
                     x => println!("Ipv4:ignoring non TCP packet, {:?}", x),
                 }
             }
-        },
+        }
         EtherTypes::Ipv6 => {
             let header = Ipv4Packet::new(ethernet.payload());
             if let Some(header) = header {
@@ -176,17 +170,17 @@ fn _handle_packet_everything(ethernet: &EthernetPacket) {
                                 tcp.get_source(),
                                 header.get_destination(),
                                 tcp.get_destination()
-                                );
+                            );
                         }
-                    },
+                    }
                     IpNextHeaderProtocols::Sscopmce => {
                         // maybe follow https://docs.rs/pnet_packet/0.21.0/src/pnet_packet/home/cratesfyi/cratesfyi/debug/build/pnet_packet-5727444bbdb057d0/out/udp.rs.html#61-66
-                        println!( "Ipv6:Sscopmce: no supported parser yet");
-                    },
+                        println!("Ipv6:Sscopmce: no supported parser yet");
+                    }
                     x => println!("Ipv6:ignoring non TCP packet, {:?}", x),
                 }
             }
-        },
+        }
         EtherTypes::Arp => {
             let header = Ipv4Packet::new(ethernet.payload());
             if let Some(header) = header {
@@ -200,16 +194,16 @@ fn _handle_packet_everything(ethernet: &EthernetPacket) {
                                 tcp.get_source(),
                                 header.get_destination(),
                                 tcp.get_destination()
-                                );
+                            );
                         }
-                    },
+                    }
                     x => {
                         let name = format!("{}", x);
                         println!("Arp:ignoring non TCP packet, {}", name)
                     }
                 }
             }
-        },
+        }
         x => println!("ignoring non ipv4,ipv6,arp packet, {:?}", x),
     }
 }
@@ -229,9 +223,9 @@ fn _handle_packet_raw(ethernet: &EthernetPacket) {
                                 tcp.get_source(),
                                 header.get_destination(),
                                 tcp.get_destination()
-                                );
+                            );
                         }
-                    },
+                    }
                     IpNextHeaderProtocols::Udp => {
                         let tcp = UdpPacket::new(header.payload());
                         if let Some(tcp) = tcp {
@@ -241,17 +235,17 @@ fn _handle_packet_raw(ethernet: &EthernetPacket) {
                                 tcp.get_source(),
                                 header.get_destination(),
                                 tcp.get_destination()
-                                );
+                            );
                         }
-                    },
+                    }
                     IpNextHeaderProtocols::Igmp => {
                         // write one, like https://docs.rs/pnet_packet/0.21.0/src/pnet_packet/home/cratesfyi/cratesfyi/debug/build/pnet_packet-5727444bbdb057d0/out/udp.rs.html#61-66
-                        println!( "Ipv4:Igmp: no supported parser yet");
-                    },
+                        println!("Ipv4:Igmp: no supported parser yet");
+                    }
                     x => println!("Ipv4:ignoring non TCP packet, {:?}", x),
                 }
             }
-        },
+        }
         EtherTypes::Ipv6 => {
             let header = Ipv4Packet::new(ethernet.payload());
             if let Some(header) = header {
@@ -265,17 +259,17 @@ fn _handle_packet_raw(ethernet: &EthernetPacket) {
                                 tcp.get_source(),
                                 header.get_destination(),
                                 tcp.get_destination()
-                                );
+                            );
                         }
-                    },
+                    }
                     IpNextHeaderProtocols::Sscopmce => {
                         // maybe follow https://docs.rs/pnet_packet/0.21.0/src/pnet_packet/home/cratesfyi/cratesfyi/debug/build/pnet_packet-5727444bbdb057d0/out/udp.rs.html#61-66
-                        println!( "Ipv6:Sscopmce: no supported parser yet");
-                    },
+                        println!("Ipv6:Sscopmce: no supported parser yet");
+                    }
                     x => println!("Ipv6:ignoring non TCP packet, {:?}", x),
                 }
             }
-        },
+        }
         EtherTypes::Arp => {
             let header = Ipv4Packet::new(ethernet.payload());
             if let Some(header) = header {
@@ -289,28 +283,30 @@ fn _handle_packet_raw(ethernet: &EthernetPacket) {
                                 tcp.get_source(),
                                 header.get_destination(),
                                 tcp.get_destination()
-                                );
+                            );
                         }
-                    },
+                    }
                     x => {
                         let name = format!("{}", x);
                         println!("Arp:ignoring non TCP packet, {}", name)
                     }
                 }
             }
-        },
+        }
         x => println!("ignoring non ipv4,ipv6,arp packet, {:?}", x),
     }
 }
 
 fn main() {
+    /*
     let interface_name = env::args().nth(1).unwrap();
 
     // get all interfaces
     let interfaces = datalink::interfaces();
 
     //filter the list to find the given interface name
-    let interface = interfaces.into_iter()
+    let interface = interfaces
+        .into_iter()
         .filter(|iface: &NetworkInterface| iface.name == interface_name)
         .next()
         .expect("error getting interface");
@@ -318,12 +314,10 @@ fn main() {
     let (_tx, mut rx) = match datalink::channel(&interface, Default::default()) {
         Ok(Ethernet(tx, rx)) => (tx, rx),
         Ok(_) => panic!("unhandled channel type!"),
-        Err(e) => {
-            panic!(
-                "An Error occurred when creating th edatalink channel: {}",
-                e
-                )
-        },
+        Err(e) => panic!(
+            "An Error occurred when creating th edatalink channel: {}",
+            e
+        ),
     };
 
     let mut accumulator = PacketAccumulator::new();
@@ -340,6 +334,20 @@ fn main() {
             }
         }
     }
+    */
+
+    let fake_traffic = vec![
+        "192.168.0.1 -> 8.8.8.8: 300".to_string(),
+        "8.8.8.8 -> 192.168.0.1: 300".to_string(),
+    ];
+
+    let mut siv = cursive::Cursive::default();
+
+    siv.add_global_callback('q', |s| s.quit());
+
+    siv.add_layer(cursive::views::TextView::new(
+        "Hello cursive! Press <q> to quit.",
+    ));
+
+    siv.run();
 }
-
-
